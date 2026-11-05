@@ -13,23 +13,14 @@ window.__ModuleLoader__.load({
 		/** Key this plugin used before the rename; read once so saved identity survives. */
 		const LEGACY_STORAGE_KEY = 'dsh.profile-identity.v1';
 		/**
-		 * This plugin's own version, shown in the page footnote. Not to be confused
-		 * with CLIENT_VERSION below, which is the shell build version the balance
-		 * request has to send. The client half receives no package metadata and no
-		 * catalogued client service carries it, so the value is kept here by hand —
-		 * scripts/publish.sh runs this plugin's checks first and refuses to publish
-		 * when it drifts from package.json.
+		 * This plugin's own version, shown in the page footnote. The client half
+		 * receives no package metadata, so the value is kept here by hand — the
+		 * structure check and scripts/publish.sh both refuse a release when it
+		 * drifts from package.json.
 		 */
-		const PLUGIN_VERSION = '0.1.5';
+		const PLUGIN_VERSION = '0.1.6';
 		/** Dedupe tag for this plugin's stylesheet. */
 		const CSS_TAG = 'dsh-ui-personalization/client.css';
-		/**
-		 * Client build version the account Remote reports as `x-client-version`. The
-		 * shell inlines it at build time and exposes no runtime source, so this
-		 * constant has to track the dsh release by hand. A stale value only costs the
-		 * balance read, which then reports itself instead of showing a wrong figure.
-		 */
-		const CLIENT_VERSION = '0.2.0-rc.2';
 		/** Safety-net re-read while the page stays visible; the account stream drives the rest. */
 		const BALANCE_REFRESH_MS = 180000;
 		/** How long to wait for the account Remote before calling it unavailable. */
@@ -44,6 +35,19 @@ window.__ModuleLoader__.load({
 		 */
 		const BRAND_COLLAPSE_CSS = '[class*="_logoRow"]:not(:has(button)){height:0;min-height:0;margin:0;padding:0;overflow:hidden}';
 		const BRAND_COLLAPSE_TAG = 'dsh-ui-personalization/brand-collapse.css';
+
+		/**
+		 * The client build version the account Remote reports as `x-client-version`.
+		 * The shell inlines its own release version into each client bundle at build
+		 * time; the boot manifest publishes that same release, and is its only
+		 * runtime copy. When a host publishes no release the balance stays hidden
+		 * rather than sending a stale version this plugin cannot verify.
+		 * @returns the version, or null when the page carries none.
+		 */
+		function readClientVersion() {
+			const version = globalThis.__DSH_BOOT__?.release?.version;
+			return typeof version === 'string' && version !== '' ? version : null;
+		}
 
 		const en = {
 			'launcher.label': 'Personalization',
@@ -83,7 +87,7 @@ window.__ModuleLoader__.load({
 		/* The launcher and the controls copy the shipped markup for the same seats;
 		 * the section stack copies the shipped account section. Every declaration
 		 * below is a --dsw-* token, renamed under this plugin's prefix. */
-		const CSS = '.dshprf_root{flex:1;min-width:0}.dshprf_trigger{user-select:none;border-radius:var(--dsw-radius-md);width:100%;height:44px;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;align-items:center;gap:8px;padding:6px;font-size:14px;display:flex}.dshprf_trigger[data-collapsed=true]{box-sizing:border-box;justify-content:center;gap:0;width:36px;height:36px;padding:0}.dshprf_trigger:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshprf_trigger:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_avatar{corner-shape:round;background:var(--dsw-alias-bg-skeleton);width:24px;height:24px;color:var(--dsw-alias-label-tertiary);border-radius:50%;flex:none;justify-content:center;align-items:center;display:flex;overflow:hidden}.dshprf_label{flex:1;min-width:0;text-align:left;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.dshprf_balance{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;white-space:nowrap}.dshprf_image{corner-shape:round;width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}.dshprf_initial{corner-shape:round;width:100%;height:100%;border-radius:50%;color:#fff;font-size:12px;justify-content:center;align-items:center;display:flex}.dshprf_section{color:var(--dsw-alias-label-primary);flex-direction:column;gap:16px;padding:8px 0;font-size:13px;line-height:22px;display:flex}.dshprf_card{border:.5px solid var(--dsw-alias-settings-card-stroke);border-radius:var(--dsw-radius-xl);background:var(--dsw-alias-settings-card-fill);padding:2px 16px}.dshprf_field{box-sizing:border-box;justify-content:space-between;align-items:center;gap:16px;min-height:56px;padding:12px 0;display:flex}.dshprf_field+.dshprf_field{border-top:.5px solid var(--dsw-alias-border-l2)}.dshprf_fieldText{flex-direction:column;gap:4px;min-width:0;display:flex}.dshprf_fieldTitle{color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}.dshprf_fieldDesc{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dshprf_fieldControl{flex:none;align-items:center;gap:8px;display:flex}.dshprf_preview{width:56px;height:56px;flex:none}.dshprf_preview .dshprf_initial{font-size:22px}.dshprf_input{box-sizing:border-box;width:200px;height:36px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;padding:0 10px;font-size:14px;line-height:22px}.dshprf_input:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_button{box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md);white-space:nowrap;height:36px;color:var(--dsw-alias-label-primary);background:0 0;justify-content:center;align-items:center;padding:0 14px;font:inherit;font-size:14px;line-height:22px;cursor:pointer;display:inline-flex}.dshprf_button:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshprf_button:disabled{color:var(--dsw-alias-label-tertiary);cursor:default;background:0 0}.dshprf_button:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_switch{box-sizing:border-box;width:36px;height:20px;border:0;border-radius:999px;corner-shape:round;background:var(--dsw-alias-border-l3);cursor:pointer;flex:none;align-items:center;padding:2px;display:inline-flex}.dshprf_switch[aria-checked=true]{background:var(--dsw-alias-brand-primary)}.dshprf_switch:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_knob{corner-shape:round;width:16px;height:16px;border-radius:50%;background:var(--dsw-alias-label-primary-foreground);transition:transform 120ms ease}.dshprf_switch[aria-checked=true] .dshprf_knob{transform:translateX(16px)}.dshprf_footnote{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0;text-align:center}.dshprf_pick{position:relative;flex:none}.dshprf_pickBtn{position:relative;box-sizing:border-box;border:0;padding:0;cursor:pointer;font:inherit}.dshprf_pickBtn:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_remove{corner-shape:round;position:absolute;top:-4px;right:-4px;width:22px;height:22px;border:0;padding:0;border-radius:50%;background:#000000b3;color:#fff;box-shadow:0 0 0 2px var(--dsw-alias-settings-card-fill);justify-content:center;align-items:center;display:flex;opacity:0;pointer-events:none;cursor:pointer;transition:opacity 120ms ease}.dshprf_remove:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_scrim{position:absolute;inset:0;border-radius:inherit;corner-shape:inherit;background:#00000073;color:#fff;justify-content:center;align-items:center;display:flex;opacity:0;transition:opacity 120ms ease}.dshprf_pick:hover .dshprf_scrim,.dshprf_pick:focus-within .dshprf_scrim,.dshprf_pick:hover .dshprf_remove,.dshprf_pick:focus-within .dshprf_remove{opacity:1}.dshprf_pick:hover .dshprf_remove,.dshprf_pick:focus-within .dshprf_remove{pointer-events:auto}.dshprf_fieldError{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}@media (prefers-reduced-motion:reduce){.dshprf_scrim,.dshprf_remove{transition:none}}';
+		const CSS = '.dshprf_root{flex:1;min-width:0}.dshprf_trigger{user-select:none;border-radius:var(--dsw-radius-md);width:100%;height:44px;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;cursor:pointer;background:0 0;border:0;align-items:center;gap:8px;padding:6px;font-size:14px;display:flex}.dshprf_trigger[data-collapsed=true]{box-sizing:border-box;justify-content:center;gap:0;width:36px;height:36px;padding:0}.dshprf_trigger:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshprf_trigger:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_avatar{corner-shape:round;background:var(--dsw-alias-bg-skeleton);width:24px;height:24px;color:var(--dsw-alias-label-tertiary);border-radius:50%;flex:none;justify-content:center;align-items:center;display:flex;overflow:hidden}.dshprf_label{flex:1;min-width:0;text-align:left;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.dshprf_balance{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;white-space:nowrap}.dshprf_image{corner-shape:round;width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}.dshprf_initial{corner-shape:round;width:100%;height:100%;border-radius:50%;color:#fff;font-size:12px;justify-content:center;align-items:center;display:flex}.dshprf_section{color:var(--dsw-alias-label-primary);flex-direction:column;gap:16px;padding:8px 0;font-size:13px;line-height:22px;display:flex}.dshprf_card{border:.5px solid var(--dsw-alias-settings-card-stroke);border-radius:var(--dsw-radius-xl);background:var(--dsw-alias-settings-card-fill);padding:2px 16px}.dshprf_field{box-sizing:border-box;justify-content:space-between;align-items:center;gap:16px;min-height:56px;padding:12px 0;display:flex}.dshprf_field+.dshprf_field{border-top:.5px solid var(--dsw-alias-border-l2)}.dshprf_fieldText{flex-direction:column;gap:4px;min-width:0;display:flex}.dshprf_fieldTitle{color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}.dshprf_fieldDesc{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.dshprf_fieldControl{flex:none;align-items:center;gap:8px;display:flex}.dshprf_preview{width:56px;height:56px;flex:none}.dshprf_preview .dshprf_initial{font-size:22px}.dshprf_input{box-sizing:border-box;width:200px;height:36px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;padding:0 10px;font-size:14px;line-height:22px}.dshprf_input:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_button{box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-md);white-space:nowrap;height:36px;color:var(--dsw-alias-label-primary);background:0 0;justify-content:center;align-items:center;padding:0 14px;font:inherit;font-size:14px;line-height:22px;cursor:pointer;display:inline-flex}.dshprf_button:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshprf_button:disabled{color:var(--dsw-alias-label-tertiary);cursor:default;background:0 0}.dshprf_button:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_switch{box-sizing:border-box;width:36px;height:20px;border:0;border-radius:999px;corner-shape:round;background:var(--dsw-alias-border-l3);cursor:pointer;flex:none;align-items:center;padding:2px;display:inline-flex}.dshprf_switch[aria-checked=true]{background:var(--dsw-alias-brand-primary)}.dshprf_switch:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_knob{corner-shape:round;width:16px;height:16px;border-radius:50%;background:var(--dsw-alias-switch-thumb);transition:transform 120ms ease}.dshprf_switch[aria-checked=true] .dshprf_knob{background:var(--dsw-alias-label-primary-foreground);transform:translateX(16px)}.dshprf_footnote{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0;text-align:center}.dshprf_pick{position:relative;flex:none}.dshprf_pickBtn{position:relative;box-sizing:border-box;border:0;padding:0;cursor:pointer;font:inherit}.dshprf_pickBtn:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_remove{corner-shape:round;position:absolute;top:-4px;right:-4px;width:22px;height:22px;border:0;padding:0;border-radius:50%;background:#000000b3;color:#fff;box-shadow:0 0 0 2px var(--dsw-alias-settings-card-fill);justify-content:center;align-items:center;display:flex;opacity:0;pointer-events:none;cursor:pointer;transition:opacity 120ms ease}.dshprf_remove:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}.dshprf_scrim{position:absolute;inset:0;border-radius:inherit;corner-shape:inherit;background:#00000073;color:#fff;justify-content:center;align-items:center;display:flex;opacity:0;transition:opacity 120ms ease}.dshprf_pick:hover .dshprf_scrim,.dshprf_pick:focus-within .dshprf_scrim,.dshprf_pick:hover .dshprf_remove,.dshprf_pick:focus-within .dshprf_remove{opacity:1}.dshprf_pick:hover .dshprf_remove,.dshprf_pick:focus-within .dshprf_remove{pointer-events:auto}.dshprf_fieldError{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}@media (hover:none){.dshprf_remove{opacity:1;pointer-events:auto}}@media (prefers-reduced-motion:reduce){.dshprf_scrim,.dshprf_remove{transition:none}}';
 
 		/** Small observable used by the React surfaces below. */
 		function createSource(initial) {
@@ -527,11 +531,21 @@ window.__ModuleLoader__.load({
 				}, 'ui-personalization: balance availability');
 				ctx.inject(['remote', 'remote.account'], (scope) => {
 					remoteReady = true;
+					const version = readClientVersion();
+					/* No version means no verifiable client identity to send. Hide the
+					 * figure (the plugin's usual posture) instead of guessing one. */
+					if (version === null) {
+						balance.set({
+							status: 'unavailable',
+							text: null
+						});
+						return;
+					}
 					const account = scope.remote.account;
 					let closed = false;
 					let pending = false;
 					const metadata = () => ({
-						version: CLIENT_VERSION,
+						version,
 						locale: ctx.locale.getSnapshot().active,
 						timezoneOffsetSeconds: -new Date().getTimezoneOffset() * 60
 					});

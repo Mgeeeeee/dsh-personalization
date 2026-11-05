@@ -4,7 +4,7 @@
 
 A personalization plugin for the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) client: it replaces the account row at the bottom of the sidebar with your own avatar, nickname and account balance, and can additionally hide the brand mark at the top of the sidebar. dsh does not provide any of this itself; the plugin mounts on slots dsh reserves, as a client-side cordis bundle.
 
-Built against dsh `0.2.0-rc.2` (same client build version); not tested on other versions.
+Built against dsh `0.2.1-rc.5`; not tested on other versions.
 
 ## Install
 
@@ -59,6 +59,7 @@ The number at the right end of that sidebar row comes from the account Remote, a
 ctx.remote.account.getBalance({ version, locale, timezoneOffsetSeconds })
 ```
 
+- **Client version**: the `x-client-version` header is read from the page's boot manifest, `window.__DSH_BOOT__.release.version` — the shell inlines that same release into its own bundles at build time, so a dsh upgrade no longer needs a plugin change. A deployment whose manifest carries no release shows no balance instead of requesting with a stale version.
 - **What it counts**: top-up balance + grant balance, summed when the currency is the same; it follows the official account page's rules for two decimals and for amounts under one cent (`<¥0.01`).
 - **Refresh**: every frame of the account state stream (sign-in, sign-out and state changes each push one), on plugin activation, and when the settings panel is opened; plus a fallback every 3 minutes while the page is visible. Credentials do not become available until the first frame of the state stream, so the read follows the stream.
 - **Nothing shown when it cannot be read**: signed out, offline, request refused, or a deployment without the account Remote — that cell in the sidebar simply does not render, rather than showing a wrong number.
@@ -76,10 +77,9 @@ All state lives in `localStorage['dsh.personalization.v1']` (the key keeps the o
 ## Known limitations
 
 1. **There is no entry point for "Sign out".** Besides the avatar and the phone number, the built-in account row also carries a dropdown menu (Settings / Feedback / Sign out). `settings.launcher` is a single-occupant slot, so taking it over means taking over the whole menu, and the sign-out implementation lives inside the system plugin. When you need it, turn "Custom identity" off on this page and the original account row and menu come back immediately. Official settings themselves are unaffected; the "Settings" row at the bottom of the sidebar still works as before.
-2. **The client version is hard-coded.** The account API requires a client build version (the `x-client-version` header); the shell inlines it into each bundle at build time, and there is no readable global at runtime, so the `CLIENT_VERSION` constant at the top of `client.js` must be updated by hand along with the dsh version. If the balance stops showing after a dsh upgrade, change that line first.
-3. **The brand row is collapsed by a rule matching a class-name fragment**, see above. It goes quietly stale when the shell changes structure (leaving blank space, with no error).
-4. **The navigation icon is the same as "General settings".** The shell maps icons by page id in a fixed table, unknown ids fall back to the default gear, and the registration itself has no icon field.
-5. **The two affordances on the avatar appear only on hover or keyboard focus** (the pencil, and the cross in the top-right corner). Touch screens have no hover and therefore no such hint — clicking the avatar still picks an image, but the cross has to be guessed by position. That is the price paid for keeping the interface clean.
+2. **The brand row is collapsed by a rule matching a class-name fragment**, see above. It goes quietly stale when the shell changes structure (leaving blank space, with no error).
+3. **The navigation icon is the same as "General settings".** The shell maps icons by page id in a fixed table, unknown ids fall back to the default gear, and the registration itself has no icon field.
+4. **The pencil on the avatar appears only on hover or keyboard focus.** Touch screens have no hover, so clicking the avatar still picks an image but without that hint; the cross in the top-right corner stays visible on `hover:none` devices, so it no longer has to be guessed by position.
 
 ## Uninstall
 
@@ -108,7 +108,7 @@ The browser half registers through `window.__ModuleLoader__.load({ id, factory }
 
 With a `link:` install, refreshing the page after a change is enough; if you installed the GitHub copy, changes made in the workshop do not get in, and upgrading means uninstalling and installing again. Restart dsh if the new code does not take effect.
 
-The plugin's own version number is `PLUGIN_VERSION` at the top of `client.js`; the settings footer displays it, and both sides must match `version` in `package.json` — the structure check blocks a release when they disagree. Do not confuse it with `CLIENT_VERSION` in the same file: that one is the shell's build version, used only for the balance request header.
+The plugin's own version number is `PLUGIN_VERSION` at the top of `client.js`; the settings footer displays it, and both sides must match `version` in `package.json` — the structure check blocks a release when they disagree. The shell version used for the balance request is not here; see "Balance" above.
 
 ## Acknowledgements
 
